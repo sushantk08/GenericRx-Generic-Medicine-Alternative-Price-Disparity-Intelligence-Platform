@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: genericrx_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: genericrx
+      POSTGRES_PASSWORD: genericrx_secret
+      POSTGRES_DB: genericrx_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:7.0
+    container_name: genericrx_mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: genericrx
+      MONGO_INITDB_ROOT_PASSWORD: genericrx_secret
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  postgres_data:
+  mongo_data:

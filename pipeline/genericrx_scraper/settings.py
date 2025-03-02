@@ -24,6 +24,7 @@ DEFAULT_REQUEST_HEADERS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     ),
+    
 }
 
 # AutoThrottle settings: Dynamically adjusts scraping speed based on server latency
@@ -47,3 +48,7 @@ RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429]
 FEED_EXPORT_ENCODING = "utf-8"
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
+
+ITEM_PIPELINES = {
+    "pipeline.genericrx_scraper.pipelines.RawJsonExportPipeline": 300,}

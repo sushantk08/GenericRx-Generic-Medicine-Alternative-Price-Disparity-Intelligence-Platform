@@ -24,6 +24,32 @@ NOISE_PATTERNS = [
     r"[^a-zA-Z\s]",  # Non-alphabetical symbols
 ]
 
+# Unit standardizer mapping
+UNIT_MAPPINGS = {
+    "milligram": "mg",
+    "milligrams": "mg",
+    "mg": "mg",
+    "mgs": "mg",
+    "microgram": "mcg",
+    "micrograms": "mcg",
+    "mcg": "mcg",
+    "ug": "mcg",
+    "gram": "gm",
+    "grams": "gm",
+    "gm": "gm",
+    "g": "gm",
+    "milliliter": "ml",
+    "milliliters": "ml",
+    "ml": "ml",
+    "iu": "iu",
+}
+
+# Regex to capture numeric strength and unit
+DOSAGE_REGEX = re.compile(
+    r"(\d+(?:\.\d+)?)\s*(mg|mcg|ug|gm|g|ml|iu|milligram|microgram|gram|milliliter)\b",
+    re.IGNORECASE,
+)
+
 
 def clean_salt_name(raw_name: str) -> str:
     """Normalize and standardize a raw drug or chemical salt string."""
@@ -41,5 +67,37 @@ def clean_salt_name(raw_name: str) -> str:
         text = re.sub(pattern, " ", text)
 
     # 3. Clean up extra whitespace and convert to standard Title Case
-    clean_tokens = [token.capitalize() for token in text.split() if len(token) > 1]
+    clean_tokens = [
+        token.capitalize() for token in text.split() if len(token) > 1
+    ]
     return " ".join(clean_tokens).strip()
+
+
+def parse_dosage(raw_text: str) -> tuple[float, str, str]:
+    """Extract (strength_value, strength_unit, dosage_form) from raw medicine text.
+
+    Defaults to (0.0, 'mg', 'Tablet') if no explicit dosage is found.
+    """
+    if not raw_text or not isinstance(raw_text, str):
+        return (0.0, "mg", "Tablet")
+
+    # 1. Determine dosage form
+    lower_text = raw_text.lower()
+    if any(k in lower_text for k in ["capsule", "cap.", "cap "]):
+        dosage_form = "Capsule"
+    elif any(k in lower_text for k in ["syrup", "syp", "suspension", "liquid"]):
+        dosage_form = "Syrup"
+    elif any(k in lower_text for k in ["injection", "inj.", "inj "]):
+        dosage_form = "Injection"
+    else:
+        dosage_form = "Tablet"
+
+    # 2. Extract numeric strength and unit
+    match = DOSAGE_REGEX.search(raw_text)
+    if match:
+        raw_val = float(match.group(1))
+        raw_unit = match.group(2).lower()
+        std_unit = UNIT_MAPPINGS.get(raw_unit, "mg")
+        return (raw_val, std_unit, dosage_form)
+
+    return (0.0, "mg", dosage_form)

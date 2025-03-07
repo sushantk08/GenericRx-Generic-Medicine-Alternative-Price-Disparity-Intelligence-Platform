@@ -1,6 +1,9 @@
 -- Enable UUID extension if needed in future
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Enable PostgreSQL Trigram Extension for sub-second autocomplete & fuzzy matching
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- 1. Active Chemical Salts Table
 CREATE TABLE IF NOT EXISTS salts (
     id SERIAL PRIMARY KEY,
@@ -40,3 +43,8 @@ CREATE TABLE IF NOT EXISTS generic_medicines (
 CREATE INDEX IF NOT EXISTS idx_branded_salt_id ON branded_medicines(salt_id);
 CREATE INDEX IF NOT EXISTS idx_generic_salt_id ON generic_medicines(salt_id);
 CREATE INDEX IF NOT EXISTS idx_salts_name ON salts(salt_name);
+
+-- GIN Trigram Indexes for fast autocomplete, prefix, and substring search
+CREATE INDEX IF NOT EXISTS idx_branded_name_trgm ON branded_medicines USING gin (brand_name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_generic_name_trgm ON generic_medicines USING gin (generic_name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_salts_name_trgm ON salts USING gin (salt_name gin_trgm_ops);

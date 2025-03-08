@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from backend.app.api import medicines
 from backend.app.core.config import settings
 
 app = FastAPI(
@@ -17,6 +18,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API routes
+app.include_router(medicines.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])

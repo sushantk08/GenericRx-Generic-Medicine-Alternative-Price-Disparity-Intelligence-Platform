@@ -30,3 +30,25 @@ class MedicineDetail(BaseModel):
     created_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class GenericAlternativeItem(BaseModel):
+    id: int
+    generic_name: str
+    source: str
+    pack_size: int
+    mrp: float
+    price_per_unit: float
+    price_diff_per_unit: float
+    percentage_savings: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AlternativesResponse(BaseModel):
+    branded_medicine: MedicineDetail
+    alternatives: list[GenericAlternativeItem]
+    best_alternative: GenericAlternativeItem | None
+    max_savings_percentage: float
+
+    model_config = ConfigDict(from_attributes=True)

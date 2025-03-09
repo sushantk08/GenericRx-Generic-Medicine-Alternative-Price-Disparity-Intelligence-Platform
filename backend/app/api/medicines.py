@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.app.db.session import get_db
-from backend.app.models.schemas import AutocompleteItem
+from backend.app.models.schemas import AutocompleteItem, MedicineDetail
 
 router = APIRouter(prefix="/medicines", tags=["Medicines"])
 
@@ -22,7 +22,6 @@ def autocomplete_medicines(
     clean_query = q.strip()
     prefix_pattern = f"{clean_query}%"
 
-    # SQL query combining prefix matching with trigram similarity for typo tolerance
     sql = text(
         """
         SELECT 
@@ -70,3 +69,47 @@ def autocomplete_medicines(
             )
         )
     return items
+
+
+@router.get("/{id}", response_model=MedicineDetail)
+def get_medicine_detail(id: int, db: Session = Depends(get_db)):
+    """Retrieve detailed specifications of a branded medicine by ID."""
+    sql = text(
+        """
+        SELECT 
+            b.id,
+            b.brand_name,
+            b.manufacturer,
+            b.pack_size,
+            CAST(b.mrp AS FLOAT) AS mrp,
+            CAST(b.price_per_unit AS FLOAT) AS price_per_unit,
+            b.created_at,
+            s.id AS salt_id,
+            s.salt_name,
+            CAST(s.strength_value AS FLOAT) AS strength_value,
+            s.strength_unit,
+            s.dosage_form
+        FROM branded_medicines b
+        JOIN salts s ON b.salt_id = s.id
+        WHERE b.id = :id;
+        """
+    )
+
+    row = db.execute(sql, {"id": id}).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+
+    return MedicineDetail(
+        id=row["id"],
+        brand_name=row["brand_name"],
+        manufacturer=row["manufacturer"],
+        pack_size=row["pack_size"],
+        mrp=row["mrp"],
+        price_per_unit=row["price_per_unit"],
+        created_at=row["created_at"],
+        salt_id=row["salt_id"],
+        salt_name=row["salt_name"],
+        strength_value=row["strength_value"],
+        strength_unit=row["strength_unit"],
+        dosage_form=row["dosage_form"],
+    )

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.api import medicines
+from backend.app.api import calculator, medicines
 from backend.app.core.config import settings
 
 app = FastAPI(
@@ -21,6 +21,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(medicines.router, prefix=settings.API_V1_STR)
+app.include_router(calculator.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])

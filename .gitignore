@@ -25,3 +25,8 @@ Thumbs.db
 # Data files
 data/raw/*.json
 data/processed/*.csv
+
+# Next.js & Node dependencies
+frontend/node_modules/
+frontend/.next/
+frontend/out/

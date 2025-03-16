@@ -3,12 +3,16 @@
 import React, { useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import ComparisonCard from '../components/ComparisonCard';
+import SavingsCalculator from '../components/SavingsCalculator';
 import { Loader2 } from 'lucide-react';
 
 export default function HomePage() {
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [alternativesData, setAlternativesData] = useState(null);
   const [isLoadingAlternatives, setIsLoadingAlternatives] = useState(false);
+
+  // Prescription basket for savings calculator
+  const [prescriptionItems, setPrescriptionItems] = useState([]);
 
   const handleSelectMedicine = async (med) => {
     setSelectedMedicine(med);
@@ -29,11 +33,29 @@ export default function HomePage() {
   };
 
   const handleAddToCalculator = (medicine) => {
-    alert(`Added ${medicine.brand_name} to Prescription Calculator! (Configured in Step 14.2)`);
+    setPrescriptionItems((prev) => {
+      const exists = prev.find((item) => item.medicine.id === medicine.id);
+      if (exists) {
+        return prev;
+      }
+      return [...prev, { medicine, tablets_per_day: 1.0 }];
+    });
+  };
+
+  const handleRemoveFromCalculator = (medicineId) => {
+    setPrescriptionItems((prev) => prev.filter((item) => item.medicine.id !== medicineId));
+  };
+
+  const handleUpdateDosage = (medicineId, newDosage) => {
+    setPrescriptionItems((prev) =>
+      prev.map((item) =>
+        item.medicine.id === medicineId ? { ...item, tablets_per_day: newDosage } : item
+      )
+    );
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-16">
       {/* Hero Section */}
       <div className="text-center max-w-2xl mx-auto space-y-3">
         <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
@@ -54,13 +76,20 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Comparison Cards */}
+      {/* Side-by-Side Comparison Card */}
       {alternativesData && !isLoadingAlternatives && (
         <ComparisonCard 
           data={alternativesData} 
           onAddToCalculator={handleAddToCalculator} 
         />
       )}
+
+      {/* Interactive Monthly Prescription Savings Calculator */}
+      <SavingsCalculator
+        prescriptionItems={prescriptionItems}
+        onRemoveItem={handleRemoveFromCalculator}
+        onUpdateDosage={handleUpdateDosage}
+      />
     </div>
   );
 }

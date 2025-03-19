@@ -1,103 +1,141 @@
 import re
+from typing import TypedDict
 
-# Common abbreviations mapped to standardized pharmaceutical chemical names
-SALT_SYNONYMS = {
-    r"\bhcl\b": "Hydrochloride",
-    r"\bhydrochlor\b": "Hydrochloride",
-    r"\bsod\b": "Sodium",
-    r"\bpot\b": "Potassium",
-    r"\bphos\b": "Phosphate",
-    r"\bsulph\b": "Sulphate",
-    r"\bsulfate\b": "Sulphate",
-    r"\bcalc\b": "Calcium",
-}
 
-# Modifiers, pharmacopeia standards, and dosage words to strip out
-NOISE_PATTERNS = [
-    r"\b(tab|tablets?|caps?|capsules?|inj|injections?|syp|syrup|drops?|gel|cream|ointment)\b\.?",
-    r"\b(ip|bp|usp)\b\.?",  # Pharmacopeia monographs
-    r"\b(sr|er|cr|pr|xr|mr|dr|xl)\b",  # Release types (Sustained/Extended/Controlled Release)
-    r"\b(forte|plus|ds)\b",  # Marketing brand suffixes
-    r"\(.*?\)",  # Parenthetical expressions like (as hydrochloride)
-    r"\d+(\.\d+)?\s*(mg|mcg|gm|g|ml|iu|u|%|milligram|microgram)\b",  # Dosages like 500mg, 10 ml
-    r"[\+\/\&]",  # Combination separators if needed for single-salt cleaning
-    r"[^a-zA-Z\s]",  # Non-alphabetical symbols
+class ParsedComponent(TypedDict):
+    salt: str
+    strength: float
+    unit: str
+
+
+class NormalizedSaltResult(TypedDict):
+    canonical_salt_name: str
+    strength_display: str
+    dosage_form: str
+    components: list[ParsedComponent]
+
+
+# Noise words, pharmacopoeia tags, and release mechanisms
+STRIP_TERMS = [
+    r"\bIP\b",
+    r"\bBP\b",
+    r"\bUSP\b",
+    r"\bHCL\b",
+    r"\bHYDROCHLORIDE\b",
+    r"\bSR\b",
+    r"\bER\b",
+    r"\bPR\b",
+    r"\bCR\b",
+    r"\bXR\b",
+    r"\bFORTE\b",
+    r"\bPLUS\b",
+    r"\bTABLET\b",
+    r"\bTABLETS\b",
+    r"\bCAPSULE\b",
+    r"\bCAPSULES\b",
+    r"\bTAB\b",
+    r"\bCAP\b",
+    r"\bSYRUP\b",
+    r"\bINJECTION\b",
 ]
 
-# Unit standardizer mapping
-UNIT_MAPPINGS = {
-    "milligram": "mg",
-    "milligrams": "mg",
-    "mg": "mg",
-    "mgs": "mg",
-    "microgram": "mcg",
-    "micrograms": "mcg",
-    "mcg": "mcg",
-    "ug": "mcg",
-    "gram": "gm",
-    "grams": "gm",
-    "gm": "gm",
-    "g": "gm",
-    "milliliter": "ml",
-    "milliliters": "ml",
-    "ml": "ml",
-    "iu": "iu",
-}
-
-# Regex to capture numeric strength and unit
-DOSAGE_REGEX = re.compile(
-    r"(\d+(?:\.\d+)?)\s*(mg|mcg|ug|gm|g|ml|iu|milligram|microgram|gram|milliliter)\b",
-    re.IGNORECASE,
-)
+# Standard dosage forms detection
+DOSAGE_FORMS = [
+    ("Tablet", [r"\btablet\b", r"\btablets\b", r"\btab\b"]),
+    ("Capsule", [r"\bcapsule\b", r"\bcapsules\b", r"\bcap\b"]),
+    ("Syrup", [r"\bsyrup\b", r"\bsuspension\b"]),
+    ("Injection", [r"\binjection\b", r"\binj\b"]),
+    ("Ointment", [r"\bointment\b", r"\bcream\b", r"\bgel\b"]),
+]
 
 
-def clean_salt_name(raw_name: str) -> str:
-    """Normalize and standardize a raw drug or chemical salt string."""
-    if not raw_name or not isinstance(raw_name, str):
-        return ""
-
-    text = raw_name.lower().strip()
-
-    # 1. Expand known salt abbreviations
-    for pattern, replacement in SALT_SYNONYMS.items():
-        text = re.sub(pattern, replacement.lower(), text)
-
-    # 2. Strip noise terms, dosage forms, release mechanisms, and strengths
-    for pattern in NOISE_PATTERNS:
-        text = re.sub(pattern, " ", text)
-
-    # 3. Clean up extra whitespace and convert to standard Title Case
-    clean_tokens = [
-        token.capitalize() for token in text.split() if len(token) > 1
-    ]
-    return " ".join(clean_tokens).strip()
-
-
-def parse_dosage(raw_text: str) -> tuple[float, str, str]:
-    """Extract (strength_value, strength_unit, dosage_form) from raw medicine text.
-
-    Defaults to (0.0, 'mg', 'Tablet') if no explicit dosage is found.
-    """
-    if not raw_text or not isinstance(raw_text, str):
-        return (0.0, "mg", "Tablet")
-
-    # 1. Determine dosage form
+def detect_dosage_form(raw_text: str) -> str:
+    """Detect standardized dosage form from raw medicine or composition text."""
     lower_text = raw_text.lower()
-    if any(k in lower_text for k in ["capsule", "cap.", "cap "]):
-        dosage_form = "Capsule"
-    elif any(k in lower_text for k in ["syrup", "syp", "suspension", "liquid"]):
-        dosage_form = "Syrup"
-    elif any(k in lower_text for k in ["injection", "inj.", "inj "]):
-        dosage_form = "Injection"
-    else:
-        dosage_form = "Tablet"
+    for form, patterns in DOSAGE_FORMS:
+        for pat in patterns:
+            if re.search(pat, lower_text):
+                return form
+    return "Tablet"  # Default fallback for oral solid dosage
 
-    # 2. Extract numeric strength and unit
-    match = DOSAGE_REGEX.search(raw_text)
-    if match:
-        raw_val = float(match.group(1))
-        raw_unit = match.group(2).lower()
-        std_unit = UNIT_MAPPINGS.get(raw_unit, "mg")
-        return (raw_val, std_unit, dosage_form)
 
-    return (0.0, "mg", dosage_form)
+def clean_single_salt(name: str) -> str:
+    """Clean individual salt names by removing pharmacopoeia and chemical salt suffixes."""
+    cleaned = name.upper()
+    for term in STRIP_TERMS:
+        cleaned = re.sub(term, "", cleaned, flags=re.IGNORECASE)
+    # Remove extra punctuation and whitespace
+    cleaned = re.sub(r"[\(\)\[\],]", " ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned.title()
+
+
+def parse_salt_composition(raw_salt_string: str) -> NormalizedSaltResult:
+    """Parse single or multi-salt combination strings into canonical,
+
+    alphabetically sorted compound representations.
+    """
+    dosage_form = detect_dosage_form(raw_salt_string)
+
+    # Split combinations by '+', '/', or ' AND '
+    raw_parts = re.split(r"\s*(?:\+|\/|\band\b)\s*", raw_salt_string, flags=re.IGNORECASE)
+
+    parsed_components: list[ParsedComponent] = []
+
+    for part in raw_parts:
+        if not part.strip():
+            continue
+
+        # Extract numeric strength and unit (e.g., '500 mg', '0.5mg', '10 MCG', '1 GM')
+        strength_match = re.search(
+            r"(\d+(?:\.\d+)?)\s*(MG|MCG|GM|G|IU|ML|%)\b", part, flags=re.IGNORECASE
+        )
+
+        if strength_match:
+            val = float(strength_match.group(1))
+            unit = strength_match.group(2).lower()
+            # Normalize 'g' to 'gm'
+            if unit == "g":
+                unit = "gm"
+            # Remove the strength substring from the salt name
+            salt_name_only = part[: strength_match.start()] + part[strength_match.end() :]
+        else:
+            val = 0.0
+            unit = "mg"
+            salt_name_only = part
+
+        clean_name = clean_single_salt(salt_name_only)
+        if clean_name:
+            parsed_components.append(
+                {"salt": clean_name, "strength": val, "unit": unit}
+            )
+
+    # Sort components alphabetically by salt name to ensure canonical matching
+    parsed_components.sort(key=lambda x: x["salt"])
+
+    if not parsed_components:
+        # Fallback if no components parsed
+        fallback_name = clean_single_salt(raw_salt_string)
+        return {
+            "canonical_salt_name": fallback_name,
+            "strength_display": "N/A",
+            "dosage_form": dosage_form,
+            "components": [{"salt": fallback_name, "strength": 0.0, "unit": "mg"}],
+        }
+
+    # Construct canonical salt name and display strength
+    canonical_salts = [comp["salt"] for comp in parsed_components]
+    canonical_name = " + ".join(canonical_salts)
+
+    strength_parts = [
+        f"{comp['strength']:g} {comp['unit']}" if comp["strength"] > 0 else comp["unit"]
+        for comp in parsed_components
+    ]
+    strength_display = " + ".join(strength_parts)
+
+    return {
+        "canonical_salt_name": canonical_name,
+        "strength_display": strength_display,
+        "dosage_form": dosage_form,
+        "components": parsed_components,
+    }

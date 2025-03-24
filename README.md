@@ -1,175 +1,188 @@
-# GenericRx: Generic Medicine Alternative & Price Disparity Intelligence Platform
+\# GenericRx: Generic Medicine Alternative & Price Disparity Intelligence Platform
 
 GenericRx is an end-to-end intelligence platform designed to address medicine price disparity in India. It standardizes messy drug salt compositions across pharmaceutical catalogs, maps expensive brand-name medicines to government-approved generic alternatives (such as PMBJP Jan Aushadhi equivalents), and calculates exact monthly and annual prescription savings.
 
----
+\---
 
-## The Problem
-In India, patients managing chronic conditions (diabetes, hypertension, cardiovascular health) frequently spend ₹2,000 to ₹6,000 per month on branded medicines. Most are unaware that government-approved generic alternatives contain the exact same active chemical salt and dosage, but cost 60% to 85% less.
+\#\# The Problem
+In India, chronic patients (managing conditions like diabetes, hypertension, and cardiovascular health) spend between ₹2,000 and ₹6,000 every month on branded medicines. Most patients are unaware that government-approved generic alternatives—available under the Pradhan Mantri Bhartiya Janaushadhi Pariyojana (PMBJP)—contain the exact same active chemical salt, dosage, and efficacy, but cost 60% to 85% less.
 
-* **Prescription Gap**: Doctors routinely prescribe brand names instead of active chemical compositions.
-* **Catalog Fragmentation**: Medicine datasets and salt naming conventions vary widely across portals.
-* **Packaging Inconsistency**: Comparing a strip of 10 branded tablets to a bottle of 30 generic tablets requires standardized unit pricing.
+\* \*\*Prescription Friction\*\*: Doctors routinely write brand names instead of active chemical compositions.
+\* \*\*Catalog Fragmentation\*\*: Medicine datasets and salt naming conventions vary widely across portals and manufacturers.
+\* \*\*Packaging Inconsistency\*\*: Comparing a strip of 10 branded tablets to a bottle of 30 generic tablets requires standardized unit pricing.
 
----
+\---
 
-## End-to-End System Architecture
+\#\# End-to-End System Architecture
 
-```text
-[ Public Medicine Registries & Jan Aushadhi Price Catalogs ]
+\`\`\`text
+\[ Public Medicine Registries & Jan Aushadhi Price Catalogs \]
                              │
                              ▼ (Scrapy Asynchronous Crawlers)
-               [ Python Scraping / Ingestion ]
+               \[ Python Scraping / Ingestion \]
                              │
                              ▼
-             [ Pandas Cleaning & Normalization ]
-    (Standardize salt names, extract dosage e.g. "500mg",
-     calculate price per tablet/unit)
+             \[ Pandas Cleaning & Normalization \]
+    (FDC compound splitting, salt standardizer, strength parsing,
+     release mechanism extraction, price per tablet/unit)
                              │
              ┌───────────────┴───────────────┐
              ▼                               ▼
-      [ PostgreSQL 16 ]                 [ MongoDB 7 ]
+      \[ PostgreSQL 16 \]                 \[ MongoDB 7 \]
   (Clean Drug Master, Active        (Raw Source JSON,
    Salts, Price-per-unit, GIN        Manufacturer Disclaimers,
    Trigram Search Indexes)           Side-effects text)
              │
              ▼
-     [ FastAPI Async API ] ◄── (Sub-50ms Autocomplete Search)
+     \[ FastAPI Async API \] ◄── (Sub-15ms Trigram Autocomplete Search)
              │
              ▼ (REST API)
-    [ Next.js 14 Dashboard ]
-   (Search bar, Side-by-Side Comparison Cards, Monthly Savings Calculator)
-```
+    \[ Next.js 14 Dashboard \]
+   (Debounced Search Bar, Side-by-Side Comparison Cards, Monthly Savings Calculator)
+\`\`\`
 
----
+\---
 
-## Tech Stack
+\#\# Tech Stack
 
-| Layer | Technology | Purpose |
+| Layer | Technology | Role & Capabilities |
 | :--- | :--- | :--- |
-| **Frontend UI** | Next.js 14, React 18, Tailwind CSS | Instant autocomplete search, comparison cards, and interactive savings calculator |
-| **Backend API** | FastAPI, Pydantic, SQLAlchemy, Psycopg 3 | Asynchronous REST endpoints, trigram search, and financial calculation engine |
-| **Data Pipeline** | Scrapy, Pandas, NumPy, Regex | Web crawling, chemical salt normalization, dosage parsing, and unit pricing |
-| **Relational Store** | PostgreSQL 16 | Relational drug master, active salts, foreign-key mappings, and GIN trigram indexes |
-| **Document Store** | MongoDB 7 | Raw JSON snapshots, manufacturer notes, and catalog archives |
-| **DevOps** | Docker, Docker Compose | Containerized multi-service orchestration |
+| \*\*Frontend UI\*\* | Next.js 14, React 18, Tailwind CSS | Debounced autocomplete search, side-by-side comparison cards, and interactive prescription savings calculator |
+| \*\*Backend API\*\* | FastAPI, Pydantic, SQLAlchemy 2, Psycopg 3 | Asynchronous REST endpoints, GIN trigram search queries, and financial savings calculation engine |
+| \*\*Data Pipeline (ETL)\*\* | Scrapy, Pandas, NumPy, Python Regex | Web crawlers, Fixed-Dose Combination (FDC) salt parser, dosage strength extractor, and unit pricing calculator |
+| \*\*Relational Store\*\* | PostgreSQL 16 | Relational drug master, active salts, foreign-key mappings, and GIN trigram indexes (\`pg_trgm\`) |
+| \*\*Document Store\*\* | MongoDB 7 | Raw JSON snapshots, manufacturer notes, and unindexed catalog archives |
+| \*\*DevOps\*\* | Docker, Docker Compose | Containerized multi-service orchestration |
 
----
+\---
 
-## Key Engineering Solutions
+\#\# Key Engineering Solutions
 
-1\. **Regex Salt Normalization**:
-   Resolves messy catalog strings (e.g. `Tab. Metformin HCL 500mg` vs `Metformin Hydrochloride 500 MG Tablet IP`) into canonical chemical compounds (`Metformin Hydrochloride`), numeric strengths (`500.0`), and standardized units (`mg`).
+\#\#\# 1\. Fixed-Dose Combination (FDC) & Single-Salt Normalization
+\* \*\*Compound Delimiter Splitting\*\*: Splits complex formulations using \`+\`, \`/\`, \`&\`, and \`and\`.
+\* \*\*Salt Conjugate Cleaning\*\*: Normalizes chemical esters and salt bases (e.g., \`Amlodipine Besylate\` → \`Amlodipine\`).
+\* \*\*Release Mechanism Extraction\*\*: Identifies and standardizes release kinetics (\`SR\`, \`PR\`, \`ER\`, \`XR\`, \`CR\`) into formulation metadata.
+\* \*\*Canonical Alphabetical Sorting\*\*: Ensures order-independent mapping so that \`"Telmisartan 40mg \+ Amlodipine 5mg"\` and \`"Amlodipine 5mg \+ Telmisartan 40mg"\` map to the exact same canonical salt key.
 
-2\. **Price-per-Unit Standardization**:
-   Normalizes varied packaging formats to calculate like-for-like pricing:
-   $$\text{Price per Tablet} = \frac{\text{MRP}}{\text{Pack Size}}$$
+\#\#\# 2\. Standardized Price-per-Unit Comparison
+Eliminates packaging discrepancies (strips of 10, 15, bottles of 30, vials) by normalizing to unit costs:
+$$\\text{Price per Tablet} \= \\frac{\\text{MRP}}{\\text{Pack Size}}$$
+This enables like-for-like comparison (e.g. Telma 40 at ₹14.00/tablet vs. Jan Aushadhi generic at ₹1.80/tablet, an \*\*87.14% reduction\*\*).
 
-3\. **Sub-50ms Trigram Search**:
-   Utilizes PostgreSQL's `pg\_trgm` extension with GIN indexing to power typo-tolerant autocomplete search across branded and generic drugs.
+\#\#\# 3\. Sub-15ms PostgreSQL Trigram Search
+\* Indexes medicine names with PostgreSQL's \`pg_trgm\` extension using GIN (Generalized Inverted Index) structures (\`idx\_branded\_name\_trgm\`).
+\* Combines prefix matching with fuzzy similarity, allowing the system to handle typos (e.g., \`Tlma\` → \`Telma\`, \`Augmentn\` → \`Augmentin\`) in 5 to 12 milliseconds.
 
-4\. **Interactive Prescription Savings Calculator**:
-   Computes monthly spend, generic spend, and projected annual savings in ₹ across customizable daily dosage regimens.
+\#\#\# 4\. Interactive Prescription Savings Calculator
+Enables patients to input multi-drug regimens, customize daily dosage frequencies, and instantly project both monthly and annual healthcare savings in ₹.
 
----
+\---
 
-## Project Structure
+\#\# Project Structure
 
-```text
+\`\`\`text
 generic-rx/
 ├── backend/
 │   ├── app/
-│   │   ├── api/              # Endpoints (autocomplete, details, alternatives, calculator)
-│   │   ├── core/             # App configuration & CORS settings
-│   │   ├── db/               # Database sessions, schema DDL, indexing & seeding scripts
-│   │   ├── models/           # SQLAlchemy ORM & Pydantic schemas
-│   │   └── main.py           # FastAPI entrypoint
-│   ├── tests/                # Automated API integration tests
+│   │   ├── api/              \# Endpoints: autocomplete, details, alternatives, calculator
+│   │   ├── core/             \# Configuration & CORS settings
+│   │   ├── db/               \# Database sessions, schema DDL, indexing & seeding scripts
+│   │   ├── models/           \# SQLAlchemy ORM models & Pydantic schemas
+│   │   └── main.py           \# FastAPI entrypoint
+│   ├── tests/                \# Automated API integration tests & search latency benchmarks
 │   └── Dockerfile
 ├── data/
-│   ├── processed/            # Cleaned CSV datasets
-│   └── raw/                  # Scraped raw JSON archives
-├── docker-compose.yml        # Orchestrates PostgreSQL, MongoDB, Backend, and Frontend
+│   ├── processed/            \# Cleaned CSV datasets (salts, branded, generic)
+│   └── raw/                  \# Scraped and generated raw JSON archives
+├── docker-compose.yml        \# Multi-service container orchestration
 ├── frontend/
-│   ├── app/                  # Next.js App Router (layout.jsx, page.jsx, globals.css)
-│   ├── components/           # UI components (SearchBar, ComparisonCard, SavingsCalculator)
+│   ├── app/                  \# Next.js App Router (layout.jsx, page.jsx, globals.css)
+│   ├── components/           \# SearchBar, ComparisonCard, SavingsCalculator
 │   └── Dockerfile
 ├── pipeline/
-│   ├── genericrx\_scraper/    # Scrapy project (spiders, pipelines, settings)
-│   ├── tests/                # Unit tests for normalizers and parsers
-│   └── transformers/         # Regex salt normalizer, price calculator, and ETL pipeline
-└── requirements.txt          # Python dependencies
-```
+│   ├── genericrx_scraper/    \# Scrapy project (spiders, pipelines, settings)
+│   ├── tests/                \# Unit tests for salt normalizers and price calculators
+│   └── transformers/         \# FDC salt parser, price calculator, dataset generator, and ETL pipeline
+└── requirements.txt          \# Pinned Python dependencies
+\`\`\`
 
----
+\---
 
-## Quickstart Guide
+\#\# Quickstart Guide
 
-### 1\. Run via Docker Compose (Recommended)
+\#\#\# 1\. Run with Docker Compose (Full Stack)
 
-To build and run all services simultaneously:
+To build and start all four services (PostgreSQL, MongoDB, FastAPI, and Next.js):
 
-```bash
-docker compose up -d --build
-```
+\`\`\`bash
+docker compose up \-d \--build
+\`\`\`
 
-Access the services:
-* **Frontend UI**: http://localhost:3000
-* **Backend API Documentation (Swagger)**: http://localhost:8000/docs
-* **PostgreSQL**: `localhost:5433` (DB: `genericrx\_db`)
-* **MongoDB**: `localhost:27018`
+Endpoints:
+\* \*\*Frontend Dashboard\*\*: http://localhost:3000
+\* \*\*API Interactive Docs (Swagger)\*\*: http://localhost:8000/docs
+\* \*\*PostgreSQL Database\*\*: \`localhost:5433\` (DB: \`genericrx_db\`)
+\* \*\*MongoDB Store\*\*: \`localhost:27018\`
 
----
+\---
 
-### 2\. Local Development Setup
+\#\#\# 2\. Local Development & Dataset Seeding
 
-#### Databases
-```bash
-docker compose up -d postgres mongo
-```
+\#\#\#\# Start Database Containers
+\`\`\`bash
+docker compose up \-d postgres mongo
+\`\`\`
 
-#### Backend Setup
-```bash
-# Activate virtual environment
-source .venv/bin/activate  # On Windows: .venv\\Scripts\\activate
+\#\#\#\# Run Data Pipeline & Seed 3,000 Medicines
+\`\`\`bash
+\# 1\. Activate Python virtual environment
+source .venv/bin/activate  \# On Windows: .venv\\Scripts\\activate
 
-# Install dependencies
-pip install -r requirements.txt
+\# 2\. Generate 3,000 medicine catalog dataset
+python pipeline/transformers/generate_catalog.py
 
-# Run ETL and Seed Database
-python pipeline/transformers/etl\_pipeline.py
+\# 3\. Run ETL cleaning and normalization pipeline
+python pipeline/transformers/etl_pipeline.py
+
+\# 4\. Seed PostgreSQL and build GIN trigram indexes
 python backend/app/db/seed\_db.py
-python backend/app/db/create\_indexes.py
+python backend/app/db/create_indexes.py
+\`\`\`
 
-# Start Backend API
-uvicorn backend.app.main:app --reload --port 8000
-```
+\#\#\#\# Start Backend API
+\`\`\`bash
+uvicorn backend.app.main:app \--reload \--port 8000
+\`\`\`
 
-#### Frontend Setup
-```bash
+\#\#\#\# Start Frontend UI
+\`\`\`bash
 cd frontend
 npm install
 npm run dev
-```
+\`\`\`
 
----
+\---
 
-## Running Automated Tests
+\#\# Running Automated Tests & Benchmarks
 
-Run the complete test suite across normalization logic and backend API endpoints:
-
-```bash
+Run the unit tests across normalization logic and API endpoints:
+\`\`\`bash
 pytest
-```
+\`\`\`
 
----
+Run the search latency benchmark across the 3,000-medicine database:
+\`\`\`bash
+python backend/tests/benchmark_search.py
+\`\`\`
 
-## API Endpoints Reference
+\---
+
+\#\# API Endpoints Reference
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/health` | Service health and readiness status |
-| `GET` | `/api/v1/medicines/autocomplete?q={query}` | Fast trigram/prefix medicine search |
-| `GET` | `/api/v1/medicines/{id}` | Detailed specifications of a branded medicine |
-| `GET` | `/api/v1/medicines/{id}/alternatives` | Generic alternatives and percentage savings |
-| `POST`| `/api/v1/calculator/savings` | Monthly and annual prescription savings calculation |
+| \`GET\` | \`/health\` | Service health status and version |
+| \`GET\` | \`/api/v1/medicines/autocomplete?q={query}\` | Sub-15ms trigram/prefix medicine search |
+| \`GET\` | \`/api/v1/medicines/{id}\` | Specifications of a branded medicine |
+| \`GET\` | \`/api/v1/medicines/{id}/alternatives\` | Exact salt generic equivalents and savings percentage |
+| \`POST\`| \`/api/v1/calculator/savings\` | Monthly and annual prescription savings calculation |

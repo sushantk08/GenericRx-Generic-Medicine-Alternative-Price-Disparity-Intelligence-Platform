@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calculator, Trash2, IndianRupee, ArrowDownRight, ShieldCheck } from 'lucide-react';
+import { Calculator, Trash2 } from 'lucide-react';
+import { API_BASE_URL } from '../utils/api';
 
 export default function SavingsCalculator({ prescriptionItems, onRemoveItem, onUpdateDosage }) {
   const [calculation, setCalculation] = useState(null);
@@ -24,7 +25,7 @@ export default function SavingsCalculator({ prescriptionItems, onRemoveItem, onU
           })),
         };
 
-        const res = await fetch('http://localhost:8000/api/v1/calculator/savings', {
+        const res = await fetch(`${API_BASE_URL}/api/v1/calculator/savings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

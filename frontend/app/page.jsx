@@ -5,6 +5,7 @@ import SearchBar from '../components/SearchBar';
 import ComparisonCard from '../components/ComparisonCard';
 import SavingsCalculator from '../components/SavingsCalculator';
 import { Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../utils/api';
 
 export default function HomePage() {
   const [selectedMedicine, setSelectedMedicine] = useState(null);
@@ -20,7 +21,7 @@ export default function HomePage() {
     setAlternativesData(null);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/medicines/${med.id}/alternatives`);
+      const res = await fetch(`${API_BASE_URL}/api/v1/medicines/${med.id}/alternatives`);
       if (res.ok) {
         const data = await res.json();
         setAlternativesData(data);

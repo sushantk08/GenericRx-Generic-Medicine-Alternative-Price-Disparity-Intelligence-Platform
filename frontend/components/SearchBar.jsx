@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Pill, Building2, Loader2, X } from 'lucide-react';
+import { API_BASE_URL } from '../utils/api';
 
 export default function SearchBar({ onSelectMedicine }) {
   const [query, setQuery] = useState('');
@@ -21,7 +22,7 @@ export default function SearchBar({ onSelectMedicine }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Debounced API call to FastAPI autocomplete endpoint
+  // Debounced API call to autocomplete endpoint
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -33,7 +34,7 @@ export default function SearchBar({ onSelectMedicine }) {
       setIsLoading(true);
       try {
         const response = await fetch(
-          `http://localhost:8000/api/v1/medicines/autocomplete?q=${encodeURIComponent(query)}&limit=8`
+          `${API_BASE_URL}/api/v1/medicines/autocomplete?q=${encodeURIComponent(query)}&limit=8`
         );
         if (response.ok) {
           const data = await response.json();
@@ -45,7 +46,7 @@ export default function SearchBar({ onSelectMedicine }) {
       } finally {
         setIsLoading(false);
       }
-    }, 200); // 200ms debounce
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [query]);

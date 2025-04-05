@@ -58,29 +58,29 @@ In India, chronic patients (managing conditions like diabetes, hypertension, and
 | **Frontend UI** | Next.js 14, React 18, Tailwind CSS, Lucide Icons | Debounced autocomplete search, comparison cards, and interactive prescription savings calculator |
 | **Backend API** | FastAPI, Pydantic, SQLAlchemy 2, Psycopg 3 | Asynchronous REST endpoints, GIN trigram search queries, and financial savings calculation engine |
 | **Data Pipeline (ETL)** | Scrapy, Pandas, NumPy, Python Regex | Web crawlers, Fixed-Dose Combination (FDC) salt parser, dosage strength extractor, and unit pricing calculator |
-| **Relational Store** | PostgreSQL 16 | Relational drug master, active salts, foreign-key mappings, and GIN trigram indexes (`pg\_trgm`) |
+| **Relational Store** | PostgreSQL 16 | Relational drug master, active salts, foreign-key mappings, and GIN trigram indexes (`pg_trgm`) |
 | **Document Store** | MongoDB 7 | Raw JSON snapshots, manufacturer notes, and unindexed catalog archives |
 
 ---
 
 ## Key Engineering Solutions
 
-### 1\. Fixed-Dose Combination (FDC) & Single-Salt Normalization
+### 1. Fixed-Dose Combination (FDC) & Single-Salt Normalization
 * **Compound Delimiter Splitting**: Splits complex formulations using `+`, `/`, `&`, and `and`.
 * **Salt Conjugate Cleaning**: Normalizes chemical esters and salt bases (e.g., `Amlodipine Besylate` → `Amlodipine`).
 * **Release Mechanism Extraction**: Identifies and standardizes release kinetics (`SR`, `PR`, `ER`, `XR`, `CR`) into formulation metadata.
 * **Canonical Alphabetical Sorting**: Ensures order-independent mapping so that `"Telmisartan 40mg \+ Amlodipine 5mg"` and `"Amlodipine 5mg \+ Telmisartan 40mg"` map to the exact same canonical salt key.
 
-### 2\. Standardized Price-per-Unit Comparison
+### 2. Standardized Price-per-Unit Comparison
 Eliminates packaging discrepancies (strips of 10, 15, bottles of 30, vials) by normalizing to unit costs:
 $$\text{Price per Tablet} = \frac{\text{MRP}}{\text{Pack Size}}$$
 This enables like-for-like comparison (e.g. Telma 40 at ₹14.00/tablet vs. Jan Aushadhi generic at ₹1.80/tablet, an **87.14% reduction**).
 
-### 3\. Sub-15ms PostgreSQL Trigram Search
-* Indexes medicine names with PostgreSQL's `pg\_trgm` extension using GIN (Generalized Inverted Index) structures (`idx\_branded\_name\_trgm`).
+### 3. Sub-15ms PostgreSQL Trigram Search
+* Indexes medicine names with PostgreSQL's `pg_trgm` extension using GIN (Generalized Inverted Index) structures (`idx_branded_name_trgm`).
 * Combines prefix matching with fuzzy similarity, allowing the system to handle typos (e.g., `Tlma` → `Telma`, `Augmentn` → `Augmentin`) in 5 to 12 milliseconds.
 
-### 4\. Interactive Prescription Savings Calculator
+### 4. Interactive Prescription Savings Calculator
 Enables patients to input multi-drug regimens, customize daily dosage frequencies, and instantly project both monthly and annual healthcare savings in ₹.
 
 ---
@@ -110,7 +110,7 @@ generic-rx/
 │   ├── utils/                # Dynamic API base URL configuration
 │   └── Dockerfile
 ├── pipeline/
-│   ├── genericrx\_scraper/    # Scrapy project (spiders, pipelines, settings)
+│   ├── genericrx_scraper/    # Scrapy project (spiders, pipelines, settings)
 │   ├── tests/                # Unit tests for salt normalizers and price calculators
 │   └── transformers/         # FDC salt parser, price calculator, dataset generator, and ETL pipeline
 └── requirements.txt          # Pinned Python dependencies
@@ -122,45 +122,45 @@ generic-rx/
 
 ### Architecture Overview
 The platform runs on an AWS EC2 `t3.micro` instance in the Mumbai region (`ap-south-1`) with a 4 GB swap configuration, orchestrating 5 isolated Docker containers:
-1\. **`genericrx\_nginx`**: Reverse proxy handling SSL termination (port 443) and auto-redirecting port 80\.
-2\. **`genericrx\_frontend`**: Production Next.js 14 instance on port 3000\.
-3\. **`genericrx\_backend`**: Production FastAPI application on port 8000\.
-4\. **`genericrx\_postgres`**: PostgreSQL 16 database storing the 3,000-medicine catalog and GIN indexes.
-5\. **`genericrx\_mongo`**: MongoDB 7 instance storing raw scraped catalog snapshots.
+1. **`genericrx_nginx`**: Reverse proxy handling SSL termination (port 443) and auto-redirecting port 80\.
+2. **`genericrx_frontend`**: Production Next.js 14 instance on port 3000\.
+3. **`genericrx_backend`**: Production FastAPI application on port 8000\.
+4. **`genericrx_postgres`**: PostgreSQL 16 database storing the 3,000-medicine catalog and GIN indexes.
+5. **`genericrx_mongo`**: MongoDB 7 instance storing raw scraped catalog snapshots.
 
 ---
 
 ## Local Development & Testing
 
-### 1\. Run via Docker Compose
+### 1. Run via Docker Compose
 ```bash
 docker compose up -d --build
 ```
 
-### 2\. Run Data Pipeline & Seed 3,000 Medicines
+### 2. Run Data Pipeline & Seed 3,000 Medicines
 ```bash
-# 1\. Activate Python virtual environment
-source .venv/bin/activate  # On Windows: .venv\\Scripts\\activate
+# 1. Activate Python virtual environment
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# 2\. Generate 3,000 medicine catalog dataset
-python pipeline/transformers/generate\_catalog.py
+# 2. Generate 3,000 medicine catalog dataset
+python pipeline/transformers/generate_catalog.py
 
-# 3\. Run ETL cleaning and normalization pipeline
-python pipeline/transformers/etl\_pipeline.py
+# 3. Run ETL cleaning and normalization pipeline
+python pipeline/transformers/etl_pipeline.py
 
-# 4\. Seed PostgreSQL and build GIN trigram indexes
-python backend/app/db/init\_db.py
-python backend/app/db/seed\_db.py
-python backend/app/db/create\_indexes.py
+# 4. Seed PostgreSQL and build GIN trigram indexes
+python backend/app/db/init_db.py
+python backend/app/db/seed_db.py
+python backend/app/db/create_indexes.py
 ```
 
-### 3\. Run Automated Tests
+### 3. Run Automated Tests
 ```bash
 # Run unit and API tests
 pytest
 
 # Run database search latency benchmark
-python backend/tests/benchmark\_search.py
+python backend/tests/benchmark_search.py
 ```
 
 ---
